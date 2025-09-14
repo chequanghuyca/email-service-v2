@@ -1,4 +1,4 @@
-name: Deploy to Fly.io
+name: email-service-v2
 
 on:
   push:
