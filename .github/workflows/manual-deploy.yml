@@ -10,8 +10,6 @@ on:
         type: choice
         options:
           - production
-          - staging
-          - development
       app_name:
         description: 'Custom app name (optional)'
         required: false
@@ -52,17 +50,7 @@ jobs:
           if [ "${{ github.event.inputs.app_name }}" != "" ]; then
             echo "app_name=${{ github.event.inputs.app_name }}" >> $GITHUB_OUTPUT
           else
-            case "${{ github.event.inputs.environment }}" in
-              "production")
-                echo "app_name=email-service-v2" >> $GITHUB_OUTPUT
-                ;;
-              "staging")
-                echo "app_name=email-service-v2-staging" >> $GITHUB_OUTPUT
-                ;;
-              "development")
-                echo "app_name=email-service-v2-dev" >> $GITHUB_OUTPUT
-                ;;
-            esac
+            echo "app_name=email-service-v2" >> $GITHUB_OUTPUT
           fi
 
       - name: Create app if needed

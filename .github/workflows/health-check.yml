@@ -16,8 +16,6 @@ jobs:
         environment:
           - name: Production
             url: https://email-service-v2.fly.dev
-          - name: Staging
-            url: https://email-service-v2-staging.fly.dev
 
     steps:
       - name: Check ${{ matrix.environment.name }} Health
