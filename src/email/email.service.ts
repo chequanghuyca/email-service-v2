@@ -1,13 +1,23 @@
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import * as handlebars from 'handlebars';
-import { EmailResponse, BulkEmailResponse } from './interfaces/email.interface';
 import {
 	SendEmailDto,
 	SendBulkEmailDto,
 	SendTemplateEmailDto,
 } from './dto/send-email.dto';
+import {
+	EmailResponseDto,
+	BulkEmailResponseDto,
+	ConnectionTestResponseDto,
+	TemplatesResponseDto,
+} from './dto/email-response.dto';
+import {
+	EmailTemplateNotFoundException,
+	EmailSendException,
+	EmailServiceConnectionException,
+} from '../common/exceptions/email.exceptions';
 
 @Injectable()
 export class EmailService {
@@ -40,7 +50,7 @@ export class EmailService {
 		});
 	}
 
-	async sendEmail(sendEmailDto: SendEmailDto): Promise<EmailResponse> {
+	async sendEmail(sendEmailDto: SendEmailDto): Promise<EmailResponseDto> {
 		try {
 			const mailOptions: nodemailer.SendMailOptions = {
 				from: this.configService.get<string>('SYSTEM_EMAIL'),
@@ -68,17 +78,12 @@ export class EmailService {
 			};
 		} catch (error) {
 			this.logger.error('Failed to send email:', error);
-
-			return {
-				success: false,
-				message: 'Failed to send email',
-				error: error.message,
-			};
+			throw new EmailSendException('Email delivery failed', error);
 		}
 	}
 
-	async sendBulkEmail(sendBulkEmailDto: SendBulkEmailDto): Promise<BulkEmailResponse> {
-		const results: EmailResponse[] = [];
+	async sendBulkEmail(sendBulkEmailDto: SendBulkEmailDto): Promise<BulkEmailResponseDto> {
+		const results: EmailResponseDto[] = [];
 		let sent = 0;
 		let failed = 0;
 
@@ -94,12 +99,7 @@ export class EmailService {
 
 				const result = await this.sendEmail(emailDto);
 				results.push(result);
-
-				if (result.success) {
-					sent++;
-				} else {
-					failed++;
-				}
+				sent++;
 			} catch (error) {
 				failed++;
 				results.push({
@@ -120,14 +120,12 @@ export class EmailService {
 
 	async sendTemplateEmail(
 		sendTemplateEmailDto: SendTemplateEmailDto,
-	): Promise<EmailResponse> {
+	): Promise<EmailResponseDto> {
 		try {
 			const template = this.getEmailTemplate(sendTemplateEmailDto.template);
 
 			if (!template) {
-				throw new BadRequestException(
-					`Template '${sendTemplateEmailDto.template}' not found`,
-				);
+				throw new EmailTemplateNotFoundException(sendTemplateEmailDto.template);
 			}
 
 			const compiledTemplate = handlebars.compile(template);
@@ -145,11 +143,11 @@ export class EmailService {
 		} catch (error) {
 			this.logger.error('Failed to send template email:', error);
 
-			return {
-				success: false,
-				message: 'Failed to send template email',
-				error: error.message,
-			};
+			if (error instanceof EmailTemplateNotFoundException) {
+				throw error;
+			}
+
+			throw new EmailSendException('Template email delivery failed', error);
 		}
 	}
 
@@ -203,7 +201,7 @@ export class EmailService {
 		return templates[templateName] || null;
 	}
 
-	async testConnection(): Promise<{ success: boolean; message: string }> {
+	async testConnection(): Promise<ConnectionTestResponseDto> {
 		try {
 			await this.transporter.verify();
 			return {
@@ -211,10 +209,14 @@ export class EmailService {
 				message: 'Email service connection is working',
 			};
 		} catch (error) {
-			return {
-				success: false,
-				message: `Email service connection failed: ${error.message}`,
-			};
+			this.logger.error('Connection test failed:', error);
+			throw new EmailServiceConnectionException(error);
 		}
+	}
+
+	getAvailableTemplates(): TemplatesResponseDto {
+		return {
+			templates: ['welcome', 'reset_password', 'notification'],
+		};
 	}
 }

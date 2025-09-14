@@ -1,105 +1,157 @@
-import { Controller, Post, Body, Get, UseGuards } from '@nestjs/common';
+import {
+	Controller,
+	Post,
+	Body,
+	Get,
+	UseGuards,
+	UseInterceptors,
+	UsePipes,
+	ValidationPipe,
+	HttpCode,
+	HttpStatus,
+} from '@nestjs/common';
 import { ThrottlerGuard } from '@nestjs/throttler';
-import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
+import {
+	ApiTags,
+	ApiOperation,
+	ApiResponse,
+	ApiBody,
+	ApiBadRequestResponse,
+	ApiTooManyRequestsResponse,
+	ApiInternalServerErrorResponse,
+} from '@nestjs/swagger';
 import { EmailService } from './email.service';
 import {
 	SendEmailDto,
 	SendBulkEmailDto,
 	SendTemplateEmailDto,
 } from './dto/send-email.dto';
-import { EmailResponse, BulkEmailResponse } from './interfaces/email.interface';
+import {
+	EmailResponseDto,
+	BulkEmailResponseDto,
+	ConnectionTestResponseDto,
+	TemplatesResponseDto,
+} from './dto/email-response.dto';
+import { ResponseInterceptor } from '../common/interceptors/response.interceptor';
+import {
+	EmailRateLimit,
+	BulkEmailRateLimit,
+	TestRateLimit,
+} from '../common/decorators/rate-limit.decorator';
 
 @ApiTags('email')
 @Controller('email')
 @UseGuards(ThrottlerGuard)
+@UseInterceptors(ResponseInterceptor)
+@UsePipes(
+	new ValidationPipe({
+		transform: true,
+		whitelist: true,
+		forbidNonWhitelisted: true,
+	}),
+)
 export class EmailController {
 	constructor(private readonly emailService: EmailService) {}
 
 	@Post('send')
-	@ApiOperation({ summary: 'Send a single email' })
+	@HttpCode(HttpStatus.OK)
+	@EmailRateLimit()
+	@ApiOperation({
+		summary: 'Send a single email',
+		description:
+			'Send an email to a single recipient with optional CC, BCC, and attachments',
+	})
 	@ApiBody({ type: SendEmailDto })
 	@ApiResponse({
-		status: 200,
+		status: HttpStatus.OK,
 		description: 'Email sent successfully',
-		schema: {
-			type: 'object',
-			properties: {
-				success: { type: 'boolean' },
-				messageId: { type: 'string' },
-				message: { type: 'string' },
-			},
-		},
+		type: EmailResponseDto,
 	})
-	@ApiResponse({ status: 400, description: 'Bad request' })
-	@ApiResponse({ status: 429, description: 'Too many requests' })
-	async sendEmail(@Body() sendEmailDto: SendEmailDto): Promise<EmailResponse> {
+	@ApiBadRequestResponse({ description: 'Invalid email data provided' })
+	@ApiTooManyRequestsResponse({ description: 'Rate limit exceeded' })
+	@ApiInternalServerErrorResponse({ description: 'Failed to send email' })
+	async sendEmail(@Body() sendEmailDto: SendEmailDto): Promise<EmailResponseDto> {
 		return await this.emailService.sendEmail(sendEmailDto);
 	}
 
 	@Post('send-bulk')
-	@ApiOperation({ summary: 'Send emails to multiple recipients' })
+	@HttpCode(HttpStatus.OK)
+	@BulkEmailRateLimit()
+	@ApiOperation({
+		summary: 'Send emails to multiple recipients',
+		description: 'Send the same email content to multiple recipients in bulk',
+	})
 	@ApiBody({ type: SendBulkEmailDto })
 	@ApiResponse({
-		status: 200,
+		status: HttpStatus.OK,
 		description: 'Bulk emails processed',
-		schema: {
-			type: 'object',
-			properties: {
-				success: { type: 'boolean' },
-				sent: { type: 'number' },
-				failed: { type: 'number' },
-				results: { type: 'array', items: { type: 'object' } },
-			},
-		},
+		type: BulkEmailResponseDto,
 	})
+	@ApiBadRequestResponse({ description: 'Invalid bulk email data provided' })
+	@ApiTooManyRequestsResponse({ description: 'Rate limit exceeded' })
+	@ApiInternalServerErrorResponse({ description: 'Failed to process bulk emails' })
 	async sendBulkEmail(
 		@Body() sendBulkEmailDto: SendBulkEmailDto,
-	): Promise<BulkEmailResponse> {
+	): Promise<BulkEmailResponseDto> {
 		return await this.emailService.sendBulkEmail(sendBulkEmailDto);
 	}
 
 	@Post('send-template')
-	@ApiOperation({ summary: 'Send email using a predefined template' })
+	@HttpCode(HttpStatus.OK)
+	@EmailRateLimit()
+	@ApiOperation({
+		summary: 'Send email using a predefined template',
+		description:
+			'Send an email using a predefined HTML template with variable substitution',
+	})
 	@ApiBody({ type: SendTemplateEmailDto })
-	@ApiResponse({ status: 200, description: 'Template email sent successfully' })
+	@ApiResponse({
+		status: HttpStatus.OK,
+		description: 'Template email sent successfully',
+		type: EmailResponseDto,
+	})
+	@ApiBadRequestResponse({
+		description: 'Invalid template email data or template not found',
+	})
+	@ApiTooManyRequestsResponse({ description: 'Rate limit exceeded' })
+	@ApiInternalServerErrorResponse({ description: 'Failed to send template email' })
 	async sendTemplateEmail(
 		@Body() sendTemplateEmailDto: SendTemplateEmailDto,
-	): Promise<EmailResponse> {
+	): Promise<EmailResponseDto> {
 		return await this.emailService.sendTemplateEmail(sendTemplateEmailDto);
 	}
 
 	@Get('test')
-	@ApiOperation({ summary: 'Test email service connection' })
-	@ApiResponse({
-		status: 200,
-		description: 'Connection test result',
-		schema: {
-			type: 'object',
-			properties: {
-				success: { type: 'boolean' },
-				message: { type: 'string' },
-			},
-		},
+	@HttpCode(HttpStatus.OK)
+	@TestRateLimit()
+	@ApiOperation({
+		summary: 'Test email service connection',
+		description: 'Test the connection to the email service provider',
 	})
-	async testConnection(): Promise<{ success: boolean; message: string }> {
+	@ApiResponse({
+		status: HttpStatus.OK,
+		description: 'Connection test result',
+		type: ConnectionTestResponseDto,
+	})
+	@ApiTooManyRequestsResponse({ description: 'Rate limit exceeded' })
+	@ApiInternalServerErrorResponse({ description: 'Connection test failed' })
+	async testConnection(): Promise<ConnectionTestResponseDto> {
 		return await this.emailService.testConnection();
 	}
 
 	@Get('templates')
-	@ApiOperation({ summary: 'Get list of available email templates' })
-	@ApiResponse({
-		status: 200,
-		description: 'List of available templates',
-		schema: {
-			type: 'object',
-			properties: {
-				templates: { type: 'array', items: { type: 'string' } },
-			},
-		},
+	@HttpCode(HttpStatus.OK)
+	@ApiOperation({
+		summary: 'Get list of available email templates',
+		description:
+			'Retrieve a list of all available email templates for use with the send-template endpoint',
 	})
-	getAvailableTemplates(): { templates: string[] } {
-		return {
-			templates: ['welcome', 'reset_password', 'notification'],
-		};
+	@ApiResponse({
+		status: HttpStatus.OK,
+		description: 'List of available templates',
+		type: TemplatesResponseDto,
+	})
+	getAvailableTemplates(): TemplatesResponseDto {
+		return this.emailService.getAvailableTemplates();
 	}
 }
