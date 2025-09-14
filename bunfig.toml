@@ -1,0 +1,20 @@
+[install]
+# Install packages from npm registry
+registry = "https://registry.npmjs.org"
+
+# Enable peer dependencies
+peer = true
+
+# Cache directory
+cache = "node_modules/.cache/bun"
+
+[run]
+# Enable hot reloading for development
+hot = true
+
+# Set environment
+env = "development"
+
+[test]
+# Test configuration
+preload = ["./test/setup.ts"]
