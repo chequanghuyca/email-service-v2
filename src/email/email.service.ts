@@ -2,11 +2,7 @@ import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import * as handlebars from 'handlebars';
-import {
-	EmailOptions,
-	EmailResponse,
-	BulkEmailResponse,
-} from './interfaces/email.interface';
+import { EmailResponse, BulkEmailResponse } from './interfaces/email.interface';
 import {
 	SendEmailDto,
 	SendBulkEmailDto,
@@ -35,7 +31,7 @@ export class EmailService {
 		});
 
 		// Verify connection configuration
-		this.transporter.verify((error, success) => {
+		this.transporter.verify((error) => {
 			if (error) {
 				this.logger.error('Email transporter configuration error:', error);
 			} else {
