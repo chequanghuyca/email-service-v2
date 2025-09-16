@@ -46,8 +46,12 @@ export class EmailService {
 	): Promise<EmailResponseDto> {
 		try {
 			const myEmail = this.configService.get<string>('SYSTEM_EMAIL');
-			const myPhone = this.configService.get<string>('MY_PHONE', '+84 123 456 789');
+			const myPhone = this.configService.get<string>(
+				'SYSTEM_PHONE_NUMBER',
+				'+84 939.260.508',
+			);
 
+			// 1. Gửi email cảm ơn cho người dùng
 			const templateData: MailResponseData = {
 				name: portfolioDto.name,
 				myPhone: myPhone,
@@ -57,27 +61,58 @@ export class EmailService {
 			const htmlContent = getBodyMailResponse(templateData);
 			const subject = getSubjectMailResponse();
 
-			const mailOptions: nodemailer.SendMailOptions = {
+			const thankYouMailOptions: nodemailer.SendMailOptions = {
 				from: myEmail,
 				to: portfolioDto.email,
 				subject: subject,
 				html: htmlContent,
 			};
 
-			const result = await this.transporter.sendMail(mailOptions);
+			// 2. Gửi email thông báo cho chính tôi
+			const notificationSubject = `🔔 Portfolio Contact: ${portfolioDto.name}`;
+			const notificationContent = `
+				<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+					<h2 style="color: #667eea; margin-bottom: 20px;">📩 New Portfolio Contact</h2>
+					
+					<div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin: 20px 0;">
+						<p style="margin: 0 0 10px 0;"><strong>Name:</strong> ${portfolioDto.name}</p>
+						<p style="margin: 0 0 10px 0;"><strong>Email:</strong> ${portfolioDto.email}</p>
+						<p style="margin: 0 0 10px 0;"><strong>Message:</strong></p>
+						<div style="background: white; padding: 15px; border-radius: 5px; border-left: 4px solid #667eea;">
+							${portfolioDto.message}
+						</div>
+					</div>
+					
+					<p style="color: #666; font-size: 14px; margin-top: 20px;">
+						📅 Received at: ${new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}
+					</p>
+				</div>
+			`;
+
+			const notificationMailOptions: nodemailer.SendMailOptions = {
+				from: myEmail,
+				to: myEmail,
+				subject: notificationSubject,
+				html: notificationContent,
+			};
+
+			const [thankYouResult, notificationResult] = await Promise.all([
+				this.transporter.sendMail(thankYouMailOptions),
+				this.transporter.sendMail(notificationMailOptions),
+			]);
 
 			this.logger.log(
-				`Portfolio response email sent successfully to ${portfolioDto.email}`,
+				`Portfolio emails sent successfully: Thank you to ${portfolioDto.email}, Notification to ${myEmail}`,
 			);
 
 			return {
 				success: true,
-				messageId: result.messageId,
-				message: 'Portfolio response email sent successfully',
+				messageId: thankYouResult.messageId,
+				message: 'Portfolio response and notification emails sent successfully',
 			};
 		} catch (error) {
-			this.logger.error('Failed to send portfolio response email:', error);
-			throw new EmailSendException('Portfolio response email delivery failed', error);
+			this.logger.error('Failed to send portfolio emails:', error);
+			throw new EmailSendException('Portfolio email delivery failed', error);
 		}
 	}
 }
