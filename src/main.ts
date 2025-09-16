@@ -8,9 +8,11 @@ async function bootstrap() {
 
 	// Enable CORS for cross-origin requests
 	app.enableCors({
-		origin: ['http://localhost:8000', 'https://huyche.site'],
+		origin: ['http://localhost:8000', 'https://www.huyche.site'],
 		methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
 		credentials: true,
+		allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+		optionsSuccessStatus: 200,
 	});
 
 	// Enable global validation
