@@ -107,7 +107,6 @@ export class EmailService {
 
 			return {
 				success: true,
-				messageId: thankYouResult.messageId,
 				message: 'Portfolio response and notification emails sent successfully',
 			};
 		} catch (error) {
