@@ -5,11 +5,11 @@ primary_region = 'sin'  # Singapore region, you can change this to your preferre
 [build]
 
 [env]
-  PORT = '3000'
+  PORT = '4000'
   NODE_ENV = 'production'
 
 [http_service]
-  internal_port = 3000
+  internal_port = 4000
   force_https = true
   auto_stop_machines = true
   auto_start_machines = true

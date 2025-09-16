@@ -23,6 +23,29 @@ export class EmailService {
 
 	constructor(private configService: ConfigService) {
 		this.initializeTransporter();
+		this.initializeTransporterTransmaster();
+	}
+
+	private initializeTransporterTransmaster() {
+		// Use Gmail SMTP with user's configuration
+		this.transporterTransmaster = nodemailer.createTransport({
+			host: this.configService.get<string>('SYSTEM_EMAIL_HOST', 'smtp.gmail.com'),
+			port: this.configService.get<number>('SYSTEM_EMAIL_PORT', 465),
+			secure: true, // true for 465, false for other ports
+			auth: {
+				user: this.configService.get<string>('SYSTEM_EMAIL_TRANSMASTER'),
+				pass: this.configService.get<string>('SYSTEM_EMAIL_SERVER_TRANSMASTER'),
+			},
+		});
+
+		// Verify connection configuration
+		this.transporterTransmaster.verify((error) => {
+			if (error) {
+				this.logger.error('Email transporter transmaster configuration error:', error);
+			} else {
+				this.logger.log('Email transporter is ready to send messages');
+			}
+		});
 	}
 
 	private initializeTransporter() {
@@ -41,26 +64,6 @@ export class EmailService {
 		this.transporter.verify((error) => {
 			if (error) {
 				this.logger.error('Email transporter configuration error:', error);
-			} else {
-				this.logger.log('Email transporter is ready to send messages');
-			}
-		});
-
-		// Use Gmail SMTP with user's configuration
-		this.transporterTransmaster = nodemailer.createTransport({
-			host: this.configService.get<string>('SYSTEM_EMAIL_HOST', 'smtp.gmail.com'),
-			port: this.configService.get<number>('SYSTEM_EMAIL_PORT', 465),
-			secure: true, // true for 465, false for other ports
-			auth: {
-				user: this.configService.get<string>('SYSTEM_EMAIL_TRANSMASTER'),
-				pass: this.configService.get<string>('SYSTEM_EMAIL_SERVER_TRANSMASTER'),
-			},
-		});
-
-		// Verify connection configuration
-		this.transporterTransmaster.verify((error) => {
-			if (error) {
-				this.logger.error('Email transporter transmaster configuration error:', error);
 			} else {
 				this.logger.log('Email transporter is ready to send messages');
 			}

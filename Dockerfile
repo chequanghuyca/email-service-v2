@@ -26,7 +26,7 @@ RUN bun install --frozen-lockfile --production
 COPY --from=base /usr/src/app/dist ./dist
 
 # Expose port
-EXPOSE 3000
+EXPOSE 4000
 
 # Run the app
 USER bun

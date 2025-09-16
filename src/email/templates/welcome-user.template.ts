@@ -322,10 +322,10 @@ const bodyMailWelcome = `
                 /* Tablet styles */
                 @media only screen and (max-width: 768px) and (min-width: 481px) {
                     .container-padding {
-                        padding: 40px 35px !important;
+                        padding: 40px 10px !important;
                     }
                     .header-padding {
-                        padding: 45px 35px !important;
+                        padding: 45px 10px !important;
                     }
                     .section-padding {
                         padding: 25px !important;
@@ -343,10 +343,10 @@ const bodyMailWelcome = `
                 /* Mobile styles - More specific targeting */
                 @media only screen and (max-width: 480px) {
                     .container-padding {
-                        padding: 25px 20px !important;
+                        padding: 25px 6px !important;
                     }
                     .header-padding {
-                        padding: 35px 20px !important;
+                        padding: 35px 6px !important;
                     }
                     .section-padding {
                         padding: 20px !important;
