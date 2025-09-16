@@ -20,12 +20,9 @@ const bodyMailResponse = `
                 font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             "
         >
-            <table
-                role="presentation"
-                style="width: 100%; border-collapse: collapse; background-color: #f4f4f4"
-            >
+            <table role="presentation" style="width: 100%; border-collapse: collapse">
                 <tr>
-                    <td align="center" style="padding: 20px 10px">
+                    <td align="center">
                         <!-- Main Container -->
                         <table
                             role="presentation"
@@ -33,7 +30,6 @@ const bodyMailResponse = `
                                 width: 100%;
                                 border-collapse: collapse;
                                 background: white;
-                                border-radius: 15px;
                                 overflow: hidden;
                             "
                         >
@@ -84,7 +80,7 @@ const bodyMailResponse = `
                                                     class="mobile-title"
                                                     style="
                                                         margin: 0 0 15px 0;
-                                                        font-size: 36px;
+                                                        font-size: 30px;
                                                         font-weight: 300;
                                                         letter-spacing: 1px;
                                                         line-height: 1.2;
@@ -371,10 +367,10 @@ const bodyMailResponse = `
                 /* Mobile styles - More specific targeting */
                 @media only screen and (max-width: 480px) {
                     .container-padding {
-                        padding: 25px 20px !important;
+                        padding: 25px 6px !important;
                     }
                     .header-padding {
-                        padding: 35px 20px !important;
+                        padding: 35px 10px !important;
                     }
                     .section-padding {
                         padding: 20px !important;
