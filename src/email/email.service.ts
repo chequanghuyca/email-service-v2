@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
-import { PortfolioResponseDto } from './dto/send-email.dto';
+import { PortfolioResponseDto, WelcomeUserDto } from './dto/send-email.dto';
 import { EmailResponseDto } from './dto/email-response.dto';
 import { EmailSendException } from '../common/exceptions/email.exceptions';
 import {
@@ -9,11 +9,17 @@ import {
 	getSubjectMailResponse,
 	MailResponseData,
 } from './templates/portfolio-response.template';
+import {
+	getBodyMailWelcome,
+	getSubjectMailWelcome,
+	MailWelcomeData,
+} from './templates/welcome-user.template';
 
 @Injectable()
 export class EmailService {
 	private readonly logger = new Logger(EmailService.name);
 	private transporter: nodemailer.Transporter;
+	private transporterTransmaster: nodemailer.Transporter;
 
 	constructor(private configService: ConfigService) {
 		this.initializeTransporter();
@@ -35,6 +41,26 @@ export class EmailService {
 		this.transporter.verify((error) => {
 			if (error) {
 				this.logger.error('Email transporter configuration error:', error);
+			} else {
+				this.logger.log('Email transporter is ready to send messages');
+			}
+		});
+
+		// Use Gmail SMTP with user's configuration
+		this.transporterTransmaster = nodemailer.createTransport({
+			host: this.configService.get<string>('SYSTEM_EMAIL_HOST', 'smtp.gmail.com'),
+			port: this.configService.get<number>('SYSTEM_EMAIL_PORT', 465),
+			secure: true, // true for 465, false for other ports
+			auth: {
+				user: this.configService.get<string>('SYSTEM_EMAIL_TRANSMASTER'),
+				pass: this.configService.get<string>('SYSTEM_EMAIL_SERVER_TRANSMASTER'),
+			},
+		});
+
+		// Verify connection configuration
+		this.transporterTransmaster.verify((error) => {
+			if (error) {
+				this.logger.error('Email transporter transmaster configuration error:', error);
 			} else {
 				this.logger.log('Email transporter is ready to send messages');
 			}
@@ -114,6 +140,42 @@ export class EmailService {
 		} catch (error) {
 			this.logger.error('Failed to send portfolio emails:', error);
 			throw new EmailSendException('Portfolio email delivery failed', error);
+		}
+	}
+
+	async sendWelcomeUser(welcomeDto: WelcomeUserDto): Promise<EmailResponseDto> {
+		try {
+			const myEmail = this.configService.get<string>('SYSTEM_EMAIL_TRANSMASTER');
+
+			const templateData: MailWelcomeData = {
+				name: welcomeDto.name,
+				loginUrl: welcomeDto.loginUrl,
+			};
+
+			const htmlContent = getBodyMailWelcome(templateData);
+			const subject = getSubjectMailWelcome();
+
+			const mailOptions: nodemailer.SendMailOptions = {
+				from: myEmail,
+				to: welcomeDto.email,
+				subject: subject,
+				html: htmlContent,
+			};
+
+			const result = await this.transporterTransmaster.sendMail(mailOptions);
+
+			this.logger.log(
+				`Welcome email sent successfully to ${welcomeDto.email} (ID: ${result.messageId})`,
+			);
+
+			return {
+				success: true,
+				messageId: result.messageId,
+				message: 'Welcome email sent successfully',
+			};
+		} catch (error) {
+			this.logger.error('Failed to send welcome email:', error);
+			throw new EmailSendException('Welcome email delivery failed', error);
 		}
 	}
 }

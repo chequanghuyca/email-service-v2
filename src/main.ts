@@ -11,7 +11,7 @@ async function bootstrap() {
 		origin: ['http://localhost:8000', 'https://www.huyche.site'],
 		methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
 		credentials: true,
-		allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+		allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'x-api-key'],
 		optionsSuccessStatus: 200,
 	});
 
@@ -36,6 +36,16 @@ async function bootstrap() {
 		.setVersion('1.0')
 		.addTag('email', 'Email operations')
 		.addTag('health', 'Health check operations')
+		.addApiKey(
+			{
+				type: 'apiKey',
+				name: 'x-api-key',
+				in: 'header',
+				description:
+					'API Key for authentication. Use: email-service-secure-key-huyche-00000000',
+			},
+			'ApiKey',
+		)
 		.build();
 
 	const document = SwaggerModule.createDocument(app, config);
@@ -49,6 +59,14 @@ async function bootstrap() {
 		customCssUrl: [
 			'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui.min.css',
 		],
+		swaggerOptions: {
+			persistAuthorization: true,
+			displayRequestDuration: true,
+			docExpansion: 'none',
+			filter: true,
+			showRequestHeaders: true,
+			tryItOutEnabled: true,
+		},
 	});
 
 	const port = process.env.PORT || 3000;
