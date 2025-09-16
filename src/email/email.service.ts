@@ -96,7 +96,7 @@ export class EmailService {
 				html: notificationContent,
 			};
 
-			const [thankYouResult, notificationResult] = await Promise.all([
+			const [thankYouResult] = await Promise.all([
 				this.transporter.sendMail(thankYouMailOptions),
 				this.transporter.sendMail(notificationMailOptions),
 			]);
