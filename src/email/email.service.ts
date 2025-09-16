@@ -96,17 +96,19 @@ export class EmailService {
 				html: notificationContent,
 			};
 
-			const [thankYouResult] = await Promise.all([
+			// Gửi cả 2 emails đồng thời
+			const [thankYouResult, notificationResult] = await Promise.all([
 				this.transporter.sendMail(thankYouMailOptions),
 				this.transporter.sendMail(notificationMailOptions),
 			]);
 
 			this.logger.log(
-				`Portfolio emails sent successfully: Thank you to ${portfolioDto.email}, Notification to ${myEmail}`,
+				`Portfolio emails sent successfully: Thank you to ${portfolioDto.email} (ID: ${thankYouResult.messageId}), Notification to ${myEmail} (ID: ${notificationResult.messageId})`,
 			);
 
 			return {
 				success: true,
+				messageId: thankYouResult.messageId,
 				message: 'Portfolio response and notification emails sent successfully',
 			};
 		} catch (error) {
