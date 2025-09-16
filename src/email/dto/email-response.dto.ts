@@ -13,37 +13,3 @@ export class EmailResponseDto {
 	@ApiPropertyOptional({ description: 'Error message if operation failed' })
 	error?: string;
 }
-
-export class BulkEmailResponseDto {
-	@ApiProperty({ description: 'Whether all emails were sent successfully' })
-	success: boolean;
-
-	@ApiProperty({ description: 'Number of emails sent successfully' })
-	sent: number;
-
-	@ApiProperty({ description: 'Number of emails that failed to send' })
-	failed: number;
-
-	@ApiProperty({
-		description: 'Detailed results for each email',
-		type: [EmailResponseDto],
-	})
-	results: EmailResponseDto[];
-}
-
-export class ConnectionTestResponseDto {
-	@ApiProperty({ description: 'Whether the connection test was successful' })
-	success: boolean;
-
-	@ApiProperty({ description: 'Test result message' })
-	message: string;
-}
-
-export class TemplatesResponseDto {
-	@ApiProperty({
-		description: 'List of available email templates',
-		type: [String],
-		example: ['welcome', 'reset_password', 'notification'],
-	})
-	templates: string[];
-}

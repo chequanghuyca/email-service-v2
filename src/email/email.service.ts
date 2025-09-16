@@ -1,23 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
-import * as handlebars from 'handlebars';
+import { PortfolioResponseDto } from './dto/send-email.dto';
+import { EmailResponseDto } from './dto/email-response.dto';
+import { EmailSendException } from '../common/exceptions/email.exceptions';
 import {
-	SendEmailDto,
-	SendBulkEmailDto,
-	SendTemplateEmailDto,
-} from './dto/send-email.dto';
-import {
-	EmailResponseDto,
-	BulkEmailResponseDto,
-	ConnectionTestResponseDto,
-	TemplatesResponseDto,
-} from './dto/email-response.dto';
-import {
-	EmailTemplateNotFoundException,
-	EmailSendException,
-	EmailServiceConnectionException,
-} from '../common/exceptions/email.exceptions';
+	getBodyMailResponse,
+	getSubjectMailResponse,
+	MailResponseData,
+} from './templates/portfolio-response.template';
 
 @Injectable()
 export class EmailService {
@@ -50,173 +41,43 @@ export class EmailService {
 		});
 	}
 
-	async sendEmail(sendEmailDto: SendEmailDto): Promise<EmailResponseDto> {
+	async sendPortfolioResponse(
+		portfolioDto: PortfolioResponseDto,
+	): Promise<EmailResponseDto> {
 		try {
+			const myEmail = this.configService.get<string>('SYSTEM_EMAIL');
+			const myPhone = this.configService.get<string>('MY_PHONE', '+84 123 456 789');
+
+			const templateData: MailResponseData = {
+				name: portfolioDto.name,
+				myPhone: myPhone,
+				myEmail: myEmail,
+			};
+
+			const htmlContent = getBodyMailResponse(templateData);
+			const subject = getSubjectMailResponse();
+
 			const mailOptions: nodemailer.SendMailOptions = {
-				from: this.configService.get<string>('SYSTEM_EMAIL'),
-				to: sendEmailDto.to,
-				cc: sendEmailDto.cc,
-				bcc: sendEmailDto.bcc,
-				subject: sendEmailDto.subject,
-				text: sendEmailDto.text,
-				html: sendEmailDto.html,
-				attachments: sendEmailDto.attachments?.map((att) => ({
-					filename: att.filename,
-					content: Buffer.from(att.content, 'base64'),
-					contentType: att.contentType,
-				})),
+				from: myEmail,
+				to: portfolioDto.email,
+				subject: subject,
+				html: htmlContent,
 			};
 
 			const result = await this.transporter.sendMail(mailOptions);
 
-			this.logger.log(`Email sent successfully to ${sendEmailDto.to}`);
+			this.logger.log(
+				`Portfolio response email sent successfully to ${portfolioDto.email}`,
+			);
 
 			return {
 				success: true,
 				messageId: result.messageId,
-				message: 'Email sent successfully',
+				message: 'Portfolio response email sent successfully',
 			};
 		} catch (error) {
-			this.logger.error('Failed to send email:', error);
-			throw new EmailSendException('Email delivery failed', error);
+			this.logger.error('Failed to send portfolio response email:', error);
+			throw new EmailSendException('Portfolio response email delivery failed', error);
 		}
-	}
-
-	async sendBulkEmail(sendBulkEmailDto: SendBulkEmailDto): Promise<BulkEmailResponseDto> {
-		const results: EmailResponseDto[] = [];
-		let sent = 0;
-		let failed = 0;
-
-		for (const recipient of sendBulkEmailDto.to) {
-			try {
-				const emailDto: SendEmailDto = {
-					to: recipient,
-					subject: sendBulkEmailDto.subject,
-					text: sendBulkEmailDto.text,
-					html: sendBulkEmailDto.html,
-					attachments: sendBulkEmailDto.attachments,
-				};
-
-				const result = await this.sendEmail(emailDto);
-				results.push(result);
-				sent++;
-			} catch (error) {
-				failed++;
-				results.push({
-					success: false,
-					message: `Failed to send email to ${recipient}`,
-					error: error.message,
-				});
-			}
-		}
-
-		return {
-			success: failed === 0,
-			sent,
-			failed,
-			results,
-		};
-	}
-
-	async sendTemplateEmail(
-		sendTemplateEmailDto: SendTemplateEmailDto,
-	): Promise<EmailResponseDto> {
-		try {
-			const template = this.getEmailTemplate(sendTemplateEmailDto.template);
-
-			if (!template) {
-				throw new EmailTemplateNotFoundException(sendTemplateEmailDto.template);
-			}
-
-			const compiledTemplate = handlebars.compile(template);
-			const html = compiledTemplate(sendTemplateEmailDto.variables || {});
-
-			const emailDto: SendEmailDto = {
-				to: sendTemplateEmailDto.to,
-				cc: sendTemplateEmailDto.cc,
-				bcc: sendTemplateEmailDto.bcc,
-				subject: sendTemplateEmailDto.subject,
-				html,
-			};
-
-			return await this.sendEmail(emailDto);
-		} catch (error) {
-			this.logger.error('Failed to send template email:', error);
-
-			if (error instanceof EmailTemplateNotFoundException) {
-				throw error;
-			}
-
-			throw new EmailSendException('Template email delivery failed', error);
-		}
-	}
-
-	private getEmailTemplate(templateName: string): string | null {
-		const templates: Record<string, string> = {
-			welcome: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1 style="color: #333;">Welcome {{name}}!</h1>
-          <p>Thank you for joining us. We're excited to have you on board.</p>
-          <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0;">
-            <p><strong>Your account details:</strong></p>
-            <ul>
-              <li>Email: {{email}}</li>
-              <li>Account created: {{createdAt}}</li>
-            </ul>
-          </div>
-          <p>Best regards,<br>The Team</p>
-        </div>
-      `,
-
-			reset_password: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1 style="color: #333;">Password Reset Request</h1>
-          <p>Hi {{name}},</p>
-          <p>You requested a password reset for your account. Click the button below to reset your password:</p>
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="{{resetLink}}" style="background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">Reset Password</a>
-          </div>
-          <p>This link will expire in 1 hour. If you didn't request this, please ignore this email.</p>
-          <p>Best regards,<br>The Team</p>
-        </div>
-      `,
-
-			notification: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1 style="color: #333;">{{title}}</h1>
-          <p>Hi {{name}},</p>
-          <div style="background-color: #e7f3ff; padding: 20px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #007bff;">
-            <p>{{message}}</p>
-          </div>
-          {{#if actionUrl}}
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="{{actionUrl}}" style="background-color: #28a745; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">{{actionText}}</a>
-          </div>
-          {{/if}}
-          <p>Best regards,<br>The Team</p>
-        </div>
-      `,
-		};
-
-		return templates[templateName] || null;
-	}
-
-	async testConnection(): Promise<ConnectionTestResponseDto> {
-		try {
-			await this.transporter.verify();
-			return {
-				success: true,
-				message: 'Email service connection is working',
-			};
-		} catch (error) {
-			this.logger.error('Connection test failed:', error);
-			throw new EmailServiceConnectionException(error);
-		}
-	}
-
-	getAvailableTemplates(): TemplatesResponseDto {
-		return {
-			templates: ['welcome', 'reset_password', 'notification'],
-		};
 	}
 }

@@ -1,16 +1,4 @@
-import { BadRequestException, InternalServerErrorException } from '@nestjs/common';
-
-export class InvalidEmailException extends BadRequestException {
-	constructor(email: string) {
-		super(`Invalid email address: ${email}`);
-	}
-}
-
-export class EmailTemplateNotFoundException extends BadRequestException {
-	constructor(templateName: string) {
-		super(`Email template '${templateName}' not found`);
-	}
-}
+import { InternalServerErrorException } from '@nestjs/common';
 
 export class EmailSendException extends InternalServerErrorException {
 	constructor(message: string, error?: any) {
