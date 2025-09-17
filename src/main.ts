@@ -41,8 +41,7 @@ async function bootstrap() {
 				type: 'apiKey',
 				name: 'x-api-key',
 				in: 'header',
-				description:
-					'API Key for authentication. Use: email-service-secure-key-huyche-00000000',
+				description: 'API Key for authentication. Use: f33v45-bebb3-4321vf-4321vf',
 			},
 			'ApiKey',
 		)
