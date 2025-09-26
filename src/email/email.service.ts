@@ -36,6 +36,15 @@ export class EmailService {
 				user: this.configService.get<string>('SYSTEM_EMAIL_TRANSMASTER'),
 				pass: this.configService.get<string>('SYSTEM_EMAIL_SERVER_TRANSMASTER'),
 			},
+			// Connection timeout configuration
+			connectionTimeout: 60000, // 60 seconds
+			greetingTimeout: 30000, // 30 seconds
+			socketTimeout: 60000, // 60 seconds
+			// Connection pooling
+			pool: true,
+			maxConnections: 5,
+			maxMessages: 100,
+			rateLimit: 10, // max 10 messages per second
 		});
 
 		// Verify connection configuration
@@ -58,6 +67,15 @@ export class EmailService {
 				user: this.configService.get<string>('SYSTEM_EMAIL'),
 				pass: this.configService.get<string>('SYSTEM_EMAIL_SERVER'),
 			},
+			// Connection timeout configuration
+			connectionTimeout: 60000, // 60 seconds
+			greetingTimeout: 30000, // 30 seconds
+			socketTimeout: 60000, // 60 seconds
+			// Connection pooling
+			pool: true,
+			maxConnections: 5,
+			maxMessages: 100,
+			rateLimit: 10, // max 10 messages per second
 		});
 
 		// Verify connection configuration
@@ -125,10 +143,19 @@ export class EmailService {
 				html: notificationContent,
 			};
 
-			// Gửi cả 2 emails đồng thời
+			// Gửi cả 2 emails đồng thời với timeout
+			const sendEmailWithTimeout = (mailOptions: nodemailer.SendMailOptions) => {
+				return Promise.race([
+					this.transporter.sendMail(mailOptions),
+					new Promise((_, reject) =>
+						setTimeout(() => reject(new Error('Email send timeout')), 30000),
+					),
+				]);
+			};
+
 			const [thankYouResult, notificationResult] = await Promise.all([
-				this.transporter.sendMail(thankYouMailOptions),
-				this.transporter.sendMail(notificationMailOptions),
+				sendEmailWithTimeout(thankYouMailOptions),
+				sendEmailWithTimeout(notificationMailOptions),
 			]);
 
 			this.logger.log(
@@ -165,7 +192,17 @@ export class EmailService {
 				html: htmlContent,
 			};
 
-			const result = await this.transporterTransmaster.sendMail(mailOptions);
+			// Send email with timeout
+			const sendEmailWithTimeout = (mailOptions: nodemailer.SendMailOptions) => {
+				return Promise.race([
+					this.transporterTransmaster.sendMail(mailOptions),
+					new Promise((_, reject) =>
+						setTimeout(() => reject(new Error('Email send timeout')), 30000),
+					),
+				]);
+			};
+
+			const result = await sendEmailWithTimeout(mailOptions);
 
 			this.logger.log(
 				`Welcome email sent successfully to ${welcomeDto.email} (ID: ${result.messageId})`,
