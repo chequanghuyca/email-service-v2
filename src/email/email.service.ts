@@ -20,6 +20,8 @@ export class EmailService {
 	private readonly logger = new Logger(EmailService.name);
 	private transporter: nodemailer.Transporter;
 	private transporterTransmaster: nodemailer.Transporter;
+	private readonly maxRetries = 3;
+	private readonly retryDelay = 1000; // 1 second
 
 	constructor(private configService: ConfigService) {
 		this.initializeTransporter();
@@ -70,10 +72,54 @@ export class EmailService {
 		});
 	}
 
+	private async retryOperation<T>(
+		operation: () => Promise<T>,
+		operationName: string,
+	): Promise<T> {
+		let lastError: Error;
+
+		for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
+			try {
+				this.logger.log(`${operationName} - Attempt ${attempt}/${this.maxRetries}`);
+				return await operation();
+			} catch (error) {
+				lastError = error as Error;
+				this.logger.warn(
+					`${operationName} failed on attempt ${attempt}/${this.maxRetries}: ${lastError.message}`,
+				);
+
+				if (attempt < this.maxRetries) {
+					await new Promise((resolve) => setTimeout(resolve, this.retryDelay * attempt));
+				}
+			}
+		}
+
+		throw lastError!;
+	}
+
+	private async verifyTransporterConnection(
+		transporter: nodemailer.Transporter,
+	): Promise<boolean> {
+		try {
+			await transporter.verify();
+			return true;
+		} catch (error) {
+			this.logger.error('Transporter verification failed:', error);
+			return false;
+		}
+	}
+
 	async sendPortfolioResponse(
 		portfolioDto: PortfolioResponseDto,
 	): Promise<EmailResponseDto> {
-		try {
+		return await this.retryOperation(async () => {
+			// Verify transporter connection before sending
+			const isConnected = await this.verifyTransporterConnection(this.transporter);
+			if (!isConnected) {
+				this.logger.warn('Transporter not connected, reinitializing...');
+				this.initializeTransporter();
+			}
+
 			const myEmail = this.configService.get<string>('SYSTEM_EMAIL');
 			const myPhone = this.configService.get<string>(
 				'SYSTEM_PHONE_NUMBER',
@@ -140,14 +186,23 @@ export class EmailService {
 				messageId: thankYouResult.messageId,
 				message: 'Portfolio response and notification emails sent successfully',
 			};
-		} catch (error) {
-			this.logger.error('Failed to send portfolio emails:', error);
+		}, 'Portfolio email sending').catch((error) => {
+			this.logger.error('Failed to send portfolio emails after retries:', error);
 			throw new EmailSendException('Portfolio email delivery failed', error);
-		}
+		});
 	}
 
 	async sendWelcomeUser(welcomeDto: WelcomeUserDto): Promise<EmailResponseDto> {
-		try {
+		return await this.retryOperation(async () => {
+			// Verify transporter connection before sending
+			const isConnected = await this.verifyTransporterConnection(
+				this.transporterTransmaster,
+			);
+			if (!isConnected) {
+				this.logger.warn('TransporterTransmaster not connected, reinitializing...');
+				this.initializeTransporterTransmaster();
+			}
+
 			const myEmail = this.configService.get<string>('SYSTEM_EMAIL_TRANSMASTER');
 
 			const templateData: MailWelcomeData = {
@@ -176,9 +231,9 @@ export class EmailService {
 				messageId: result.messageId,
 				message: 'Welcome email sent successfully',
 			};
-		} catch (error) {
-			this.logger.error('Failed to send welcome email:', error);
+		}, 'Welcome email sending').catch((error) => {
+			this.logger.error('Failed to send welcome email after retries:', error);
 			throw new EmailSendException('Welcome email delivery failed', error);
-		}
+		});
 	}
 }

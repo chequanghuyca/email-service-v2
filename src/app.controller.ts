@@ -9,15 +9,11 @@ import { ResponseInterceptor } from './common/interceptors/response.interceptor'
 export class AppController {
 	constructor(private readonly appService: AppService) {}
 
-	@Get()
-	@ApiOperation({ summary: 'Get service status' })
-	@ApiResponse({ status: 200, description: 'Service is running' })
-	getHello(): string {
-		return this.appService.getHello();
-	}
-
 	@Get('health')
-	@ApiOperation({ summary: 'Health check endpoint' })
+	@ApiOperation({
+		summary: 'Health check endpoint',
+		description: 'Check if the service is running',
+	})
 	@ApiResponse({
 		status: 200,
 		description: 'Service health status',
